@@ -5,6 +5,8 @@
 当你拥有一个可以加载任意Class的能力,你就可以编译此项目,编译对应容器的Class
 当Class被加载之后，你将获得一个哥斯拉的内存shell,你连接时可以填写任意URI路径
 
+姊妹项目(.NET/IIS内存Shell)：https://github.com/BeichenDream/GodzillaMemoryShellProject.NET/
+
 ```
   1. 选择JDK版本
   2. 编译此项目
