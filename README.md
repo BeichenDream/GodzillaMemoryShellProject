@@ -22,7 +22,7 @@
 ```
   1. Tomcat 5 - 10
   2. Jetty 7 - 11.0.11
-  3. JBoos 8 - 27.0.0
+  3. JBoss 8 - 27.0.0
   4. Resin 3 - 4.0.66
   5. Weblogic 10.3.6 - weblogic 14
 ```
